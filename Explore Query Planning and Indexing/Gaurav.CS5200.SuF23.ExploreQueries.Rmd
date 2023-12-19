@@ -1,0 +1,225 @@
+---
+title: "Assignment / Explore Query Planning and Indexing"
+author: "Gaurav"
+date: "Summer Full 2023"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library(RSQLite)
+
+dbfile = "sakila.db"
+
+con <- dbConnect(RSQLite::SQLite(), dbfile)
+
+```
+
+
+## Question1
+
+```{r}
+query <- "DROP INDEX TitleIndex;"
+
+# Execute the query
+dbExecute(con, query)
+```
+
+
+
+
+```{r}
+query <- "SELECT l.name AS language_name, COUNT(f.film_id) AS film_count
+FROM language l
+JOIN film f ON l.language_id = f.language_id
+GROUP BY l.name;
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+## Question2
+
+```{r}
+query <- "EXPLAIN QUERY PLAN SELECT l.name AS language_name, COUNT(f.film_id) AS film_count
+FROM language l
+JOIN film f ON l.language_id = f.language_id
+GROUP BY l.name;
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+
+## Question3
+
+```{r}
+bt <- Sys.time()
+
+query <- "SELECT f.title, c.name AS category_name, f.length
+FROM film f
+JOIN film_category fc ON f.film_id = fc.film_id
+JOIN category c ON fc.category_id = c.category_id
+WHERE f.title = 'ZORRO ARK';
+"
+
+# Execute the query
+dbGetQuery(con, query)
+
+et <- Sys.time()
+
+t.which <- et - bt
+
+cat("Time elapsed: ", round((t.which),3), " sec")
+
+```
+
+## Question4
+
+```{r}
+query <- "EXPLAIN QUERY PLAN SELECT f.title, c.name AS category_name, f.length
+FROM film f
+JOIN film_category fc ON f.film_id = fc.film_id
+JOIN category c ON fc.category_id = c.category_id
+WHERE f.title = 'ZORRO ARK';
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+
+## Question5
+
+```{r}
+query <- "CREATE INDEX TitleIndex ON film (title);"
+
+# Execute the query
+dbExecute(con, query)
+```
+
+
+## Question6
+
+
+
+```{r}
+bt <- Sys.time()
+
+query <- "SELECT f.title, c.name AS category_name, f.length
+FROM film f
+JOIN film_category fc ON f.film_id = fc.film_id
+JOIN category c ON fc.category_id = c.category_id
+WHERE f.title = 'ZORRO ARK';
+"
+
+# Execute the query
+dbGetQuery(con, query)
+
+et <- Sys.time()
+
+t.which <- et - bt
+
+cat("Time elapsed: ", round((t.which),3), " sec")
+```
+
+
+```{r}
+query <- "EXPLAIN QUERY PLAN SELECT f.title, c.name AS category_name, f.length
+FROM film f
+JOIN film_category fc ON f.film_id = fc.film_id
+JOIN category c ON fc.category_id = c.category_id
+WHERE f.title = 'ZORRO ARK';
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+
+## Question7
+
+Without Index (Original Query Plan):
+
+SCAN fc USING COVERING INDEX sqlite_autoindex_film_category_1: This indicates that the query performs a full scan on the film_category table using the automatically created index sqlite_autoindex_film_category_1.
+
+SEARCH c USING INTEGER PRIMARY KEY (rowid=?): This step performs a search on the category table using the primary key index to match the category_id.
+
+SEARCH f USING INTEGER PRIMARY KEY (rowid=?): This step performs a search on the film table using the primary key index to match the film_id.
+
+With Index (Query Plan after creating TitleIndex):
+
+SEARCH f USING INDEX TitleIndex (title=?): This step shows that the query uses the index TitleIndex on the title column of the film table to search for the film with the title 'ZORRO ARK'.
+
+SEARCH fc USING COVERING INDEX sqlite_autoindex_film_category_1 (film_id=?): This step performs a search on the film_category table using the automatically created index sqlite_autoindex_film_category_1, matching the film_id.
+
+SEARCH c USING INTEGER PRIMARY KEY (rowid=?): Similar to the previous plan, this step performs a search on the category table using the primary key index to match the category_id.
+
+From the query plans, we can observe the following:
+
+The plan without the index involves a full scan of the film_category table, which can be less efficient for larger tables.
+
+The plan with the index utilizes the TitleIndex to directly search for the film with the specified title, potentially improving query performance.
+
+In this case, the presence of "SEARCH f USING INDEX TitleIndex" in the query plan with the index confirms that the index TitleIndex is utilized.
+
+
+The key difference between the two query plans is that the plan with the index leverages the TitleIndex to directly search for the film by title, potentially improving the query's efficiency. This avoids the need for a full scan of the film_category table and can lead to better performance, especially when dealing with larger datasets.
+
+
+## Question8
+
+The Execution time for query without Index: .022 seconds
+The Execution time for the query with Index: .014 seconds
+
+The query with the index (.014 seconds) is faster than the query without the index (.022 seconds).
+
+The performance difference can be attributed to the usage of the index. When an index is present on a column used in a search condition (WHERE clause), it allows the database engine to quickly locate the relevant rows, reducing the amount of data that needs to be scanned. In this case, the TitleIndex allows for efficient searching of the film table by the title column, resulting in faster execution.
+
+Without the index, the query without index has to perform a full scan of the film_category table, which can be less efficient, especially when dealing with larger datasets. This full scan requires reading and filtering a larger amount of data, leading to a slower execution time compared to the query with the index.
+
+The difference in execution time highlights the performance benefit of using an index for searching and filtering operations.
+
+## Question9
+
+```{r}
+query <- "SELECT f.title, l.name AS language, f.length
+FROM film f
+JOIN language l ON f.language_id = l.language_id
+WHERE f.title LIKE '%gold%' COLLATE NOCASE;
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+
+## Question10
+
+```{r}
+query <- "EXPLAIN QUERY PLAN SELECT f.title, l.name AS language, f.length
+FROM film f
+JOIN language l ON f.language_id = l.language_id
+WHERE f.title LIKE '%gold%' COLLATE NOCASE;
+"
+
+# Execute the query
+dbGetQuery(con, query)
+```
+
+
+The query does not use the index TitleIndex that we created. The plan indicates a table scan (SCAN f) on the film table and a search on the language table using the primary key index (SEARCH l USING INTEGER PRIMARY KEY (rowid=?)).
+
+
+It didn't use index because of the LIKE. Indexes are generally more effective for queries with exact matches rather than wildcard patterns. In this specific query (LIKE '%gold%'), SQLite may decide that a table scan is more efficient since it needs to evaluate every row for a potential match against the pattern. A table scan can be faster in this case as it avoids the need to traverse the index and access additional table pages.
+
+
+
+```{r}
+dbDisconnect(con)
+```
+
+
