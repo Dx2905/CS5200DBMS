@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+## Q4
+
+```{r}
+install.packages("XML")
+library(XML)
+
+# Path to the XML file
+xml_file <- "CustomersAndOrders.xml"
+
+
+tryCatch({
+  xml_doc <- xmlParse(xml_file, validate = TRUE)
+  print("XML document is valid.")
+}, error = function(e) {
+  print("XML document is not valid.")
+})
+
+```
+
+
+## Q5
+
+```{r}
+# Execute XPath expression to get customer names
+result <- xpathSApply(xml_doc, "//Customer[FullAddress/Region != 'MA']/ContactName", xmlValue)
+
+# Convert the result to a character vector
+customer_names <- as.character(result)
+
+# Print the names of customers not living in "MA"
+print(customer_names)
+```
+
+
+## Q6
+
+```{r}
+# Execute XPath expression to get customer names
+result <- xpathSApply(xml_doc, "//Customer[FullAddress/Region != 'MA']/ContactName", xmlValue)
+
+# Convert the result to a character vector
+customer_names <- as.character(result)
+
+# Count the number of customers not living in "MA"
+num_customers_not_in_MA <- length(customer_names)
+print(num_customers_not_in_MA)
+
+```
+
+## Q7
+
+```{r}
+# Execute XPath expression to get the freight values for orders placed by customer "GREAL"
+result <- xpathSApply(xml_doc, "//Order[CustomerID='GREAL']/ShipInfo/Freight", xmlValue)
+
+# Convert the result to numeric and calculate the total
+total_freight <- sum(as.numeric(result))
+
+# Print the total amount paid for freight
+print(total_freight)
+```
+
+
+## Q8
+
+```{r}
+# Execute XPath expression to get the freight values for orders shipped to the USA
+result <- xpathSApply(xml_doc, "//Order[ShipInfo/ShipCountry='USA']/ShipInfo/Freight", xmlValue)
+
+
+# Convert the result to numeric and calculate the average
+freight_values <- as.numeric(result)
+average_freight <- mean(freight_values)
+
+# Print the average amount paid for freight
+print(average_freight)
+```
+
+
