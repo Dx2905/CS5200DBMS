@@ -1,0 +1,207 @@
+---
+title: "Gaurav CS5200 Summer2023 Query Database with SQL"
+output: html_notebook
+---
+
+ 
+
+```{r}
+library(RSQLite)
+
+dbfile = "mediaDB.sqlite"
+
+con <- dbConnect(RSQLite::SQLite(), dbfile)
+
+```
+
+
+
+
+#Q1 SQLchunk
+
+```{sql connection=con}
+SELECT LastName as Last_Name, Title as Title, HireDate as Hire_Date from employees
+
+```
+
+#Q1 Rchunk
+
+
+
+
+#Q2Sql
+
+```{sql connection=con}
+SELECT albums.Title as Album_Title, COUNT(DISTINCT tracks.GenreId) as NumOFDistinctGenre FROM albums 
+JOIN tracks ON (albums.AlbumId=tracks.AlbumId) 
+GROUP BY albums.Title
+
+```
+
+
+
+#Q3Sql
+
+```{sql connection=con}
+SELECT 
+    g.Name AS Genre,
+    COUNT(t.TrackId) AS NumberOfTracks
+FROM 
+    genres g
+JOIN 
+    tracks t ON g.GenreId = t.GenreId
+GROUP BY 
+    g.Name
+HAVING 
+    COUNT(t.TrackId) >= 3
+ORDER BY 
+    NumberOfTracks DESC;
+
+```
+
+
+
+#Q4Sql
+
+```{sql connection=con}
+SELECT AVG(strftime('%Y', 'now') - strftime('%Y', BirthDate)) as AverageAge
+FROM employees;
+
+```
+
+
+#Q5SQl
+
+```{sql connection=con}
+SELECT 
+    c.State, 
+    COUNT(DISTINCT i.InvoiceId) as NumberOfUniquePurchases
+FROM 
+    customers c
+JOIN 
+    invoices i ON c.CustomerId = i.CustomerId
+WHERE 
+    c.Country = 'Brazil'
+GROUP BY 
+    c.State
+ORDER BY 
+    c.State;
+
+```
+
+
+
+#Q6Sql
+
+```{sql connection=con}
+SELECT 
+    COUNT(*) as NumberOfEmployeesWithoutCustomers
+FROM 
+    employees e
+LEFT JOIN 
+    customers c ON e.EmployeeId = c.SupportRepId
+WHERE 
+    c.CustomerId IS NULL
+
+```
+
+
+#Q7Sql
+
+```{sql connection=con}
+SELECT 
+    COUNT(*) as NumberOfAlbums
+FROM 
+    albums 
+WHERE 
+    Title LIKE '%Rock%' 
+    AND Title NOT LIKE '%Hard%';
+
+```
+
+
+#Q8Sql
+
+```{sql connection=con}
+SELECT 
+    m.Name AS MediaType,
+    ROUND(SUM(t.Milliseconds) / 3600000.0, 1) AS TotalTimeInHours
+FROM 
+    tracks t
+JOIN 
+    media_types m ON t.MediaTypeId = m.MediaTypeId
+GROUP BY 
+    m.Name
+HAVING 
+    COUNT(t.TrackId) > 0
+ORDER BY 
+    TotalTimeInHours DESC
+
+```
+
+
+
+#Q9Sql
+
+```{sql connection=con}
+SELECT 
+    g.Name AS Genre, 
+    COUNT(t.TrackId) AS NumberOfTracks
+FROM 
+    genres g
+JOIN 
+    tracks t ON g.GenreId = t.GenreId
+GROUP BY 
+    g.Name
+ORDER BY 
+    NumberOfTracks DESC
+LIMIT 1;
+
+
+```
+
+
+
+
+#Q10Rchunk
+
+```{r}
+
+query <- "
+  SELECT 
+    t.UnitPrice, 
+    g.GenreId, 
+    g.Name 
+  FROM 
+    tracks t
+  JOIN 
+    genres g ON t.GenreId = g.GenreId
+"
+
+# Execute the query and store the result in a dataframe
+df <- dbGetQuery(con, query)
+print(result)
+
+# Calculate the mean and standard deviation
+mean_price <- mean(df$UnitPrice)
+print(mean_price)
+sd_price <- sd(df$UnitPrice)
+print(sd_price)
+
+# Calculate the 95% confidence interval
+ci_lower <- mean_price - 1.96 * sd_price
+ci_upper <- mean_price + 1.96 * sd_price
+
+# Print the result
+cat(sprintf("The 95%% CI for the mean unit price ranges from %.1f to %.1f.", ci_lower, ci_upper))
+
+```
+
+```{r}
+dbDisconnect(con)
+```
+
+
+
+
+
