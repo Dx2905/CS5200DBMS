@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE grants [
+  <!ELEMENT grants (researcher+, grant+, relationship*)>
+
+  <!ELEMENT researcher (name, affiliation)>
+  <!ATTLIST researcher rid ID #REQUIRED>
+
+  <!ELEMENT name (#PCDATA)>
+  
+  <!ELEMENT affiliation (#PCDATA)>
+  
+  <!ELEMENT grant (gdate, type)>
+  <!ATTLIST grant gid ID #REQUIRED>
+
+  <!ELEMENT gdate (#PCDATA)>
+
+  <!ELEMENT type (#PCDATA)>
+
+
+  <!ELEMENT relationship EMPTY>
+  <!ATTLIST relationship rid IDREF #REQUIRED>
+  <!ATTLIST relationship gid IDREF #REQUIRED>
+]>
+
+
+<grants>
+  <researcher rid="R1">
+    <name>John Smith</name>
+    <affiliation>University of Maine</affiliation>
+  </researcher>
+  <researcher rid="R2">
+    <name>Jane Doe</name>
+    <affiliation>Tesla</affiliation>
+  </researcher>
+  <researcher rid="R3">
+    <name>Michael Thompson</name>
+    <affiliation>Research Institute Harvard</affiliation>
+  </researcher>
+  <researcher rid="R4">
+    <name>Sarah Johnson</name>
+    <affiliation>University of Texas</affiliation>
+  </researcher>
+  <researcher rid="R5">
+    <name>David Brown</name>
+    <affiliation>Google</affiliation>
+  </researcher>
+  <researcher rid="R6">
+    <name>Emily Wilson</name>
+    <affiliation>University of Florida</affiliation>
+  </researcher>
+  <researcher rid="R7">
+    <name>Robert Adams</name>
+    <affiliation>Research Institute Berkley</affiliation>
+  </researcher>
+  <researcher rid="R8">
+    <name>Lisa Davis</name>
+    <affiliation>Intel</affiliation>
+  </researcher>
+  <researcher rid="R9">
+    <name>Alexander Turner</name>
+    <affiliation>University of Atlanta</affiliation>
+  </researcher>
+  <researcher rid="R10">
+    <name>Olivia Green</name>
+    <affiliation>Research Institute California</affiliation>
+  </researcher>
+  <grant gid="G1">
+    <gdate>2023-01-01</gdate>
+    <type>industry</type>
+  </grant>
+  <grant gid="G2">
+    <gdate>2023-02-01</gdate>
+    <type>government</type>
+  </grant>
+  <grant gid="G3">
+    <gdate>2023-03-01</gdate>
+    <type>industry</type>
+  </grant>
+  <grant gid="G4">
+    <gdate>2023-04-01</gdate>
+    <type>government</type>
+  </grant>
+  <grant gid="G5">
+    <gdate>2023-05-01</gdate>
+    <type>industry</type>
+  </grant>
+  <grant gid="G6">
+    <gdate>2023-06-01</gdate>
+    <type>government</type>
+  </grant>
+  <grant gid="G7">
+    <gdate>2023-07-01</gdate>
+    <type>industry</type>
+  </grant>
+  <grant gid="G8">
+    <gdate>2023-08-01</gdate>
+    <type>government</type>
+  </grant>
+  <grant gid="G9">
+    <gdate>2023-09-01</gdate>
+    <type>industry</type>
+  </grant>
+  <grant gid="G10">
+    <gdate>2023-10-01</gdate>
+    <type>government</type>
+  </grant>
+  <relationship rid="R1" gid="G1"/>
+  <relationship rid="R1" gid="G2"/>
+  <relationship rid="R2" gid="G2"/>
+  <relationship rid="R3" gid="G3"/>
+  <relationship rid="R3" gid="G4"/>
+  <relationship rid="R4" gid="G3"/>
+  <relationship rid="R5" gid="G4"/>
+  <relationship rid="R5" gid="G5"/>
+  <relationship rid="R6" gid="G6"/>
+  <relationship rid="R7" gid="G7"/>
+  <relationship rid="R8" gid="G6"/>
+  <relationship rid="R8" gid="G8"/>
+  <relationship rid="R9" gid="G9"/>
+  <relationship rid="R10" gid="G10"/>
+</grants>
