@@ -1,0 +1,1 @@
+Query XML  assignment
