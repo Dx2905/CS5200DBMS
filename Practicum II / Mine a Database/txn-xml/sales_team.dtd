@@ -1,0 +1,6 @@
+<!ELEMENT salesteam (rep*)>
+<!ELEMENT rep (firstName, lastName, territory)>
+<!ATTLIST rep rID ID #REQUIRED>
+<!ELEMENT firstName (#PCDATA)>
+<!ELEMENT lastName (#PCDATA)>
+<!ELEMENT territory (#PCDATA)>

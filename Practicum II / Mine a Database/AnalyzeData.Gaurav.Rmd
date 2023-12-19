@@ -1,0 +1,130 @@
+---
+title: "Sales Analysis Report"
+date: "08/06/2023"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r Connection}
+library(DBI)
+library(RMySQL)
+
+mysql_conn <- dbConnect(RMySQL::MySQL(), 
+                        host = "sql8.freemysqlhosting.net", 
+                        user = "sql8636624", 
+                        password = "QSWKpaY4w7",
+                        dbname = "sql8636624")
+
+```
+
+
+
+
+
+This report provides an analysis of the sales data for all the years. It highlights key metrics and insights on top sales representatives and the overall sales trend. The information is vital for the managerial decision-making process and strategic planning.
+
+## Analytical Query I: Top Five Sales Representatives
+
+The following table shows the top five sales representatives with the most sales in particular year. Their outstanding performance has contributed significantly to the overall sales success.
+
+```{r Top 5 sales reps}
+library(knitr)
+library(dplyr)
+
+
+install.packages("pander")
+
+
+
+sales_reps_query <- "
+  SELECT repID, repfirstName, replastName, year, SUM(totalSold) AS totalSales
+  FROM rep_facts
+  GROUP BY repID, year
+  ORDER BY year, totalSales DESC
+"
+
+sales_reps <- dbGetQuery(mysql_conn, sales_reps_query)
+
+
+
+top_sales_reps <- sales_reps %>%
+  group_by(year) %>%
+  top_n(5, totalSales) %>%
+  ungroup()
+
+# kable(top_sales_reps, caption = "Top five sales reps with the most sales broken down by year.")
+
+library(pander)
+
+pander(top_sales_reps, caption = "Top five sales reps with the most sales broken down by year.")
+
+
+
+```
+### Key Takeaways:
+
+Walison da Silva leads the team with sales of 5,397,929  in 2020.
+These five representatives have significantly outperformed others, and their strategies and methodologies could be studied further for broader implementation.
+
+
+
+## Analytical Query II: Total Sold Per Year quarterly
+
+### Objective: 
+The objective of this analysis is to understand the quarterly sales distribution for the year 2020.
+
+### Methodology: 
+Sales data was extracted from the data warehouse and grouped by year and quarter to get the total sales per quarter for the year 2020.
+
+### Observations:
+-The highest sales were recorded in Q2 (4,848,656), indicating a mid-year surge in sales activities.
+-Q1 began with a strong performance, with sales figures reaching 3,880,526. This provided a good momentum for the following quarter.
+-There was a slight decline in sales during Q3 (4,762,835) compared to Q2, but the figures still remained robust.
+-Q4 saw a drop in sales compared to the previous quarters, with the figures settling at 4,197,137. This could be attributed to various factors such as end-of-year market slowdown or inventory reductions in anticipation of the new year.
+
+Below is the graph visualization for the above.
+
+
+
+```{r Plot Graph}
+library(ggplot2)
+
+total_sold_per_quarter_query <- "
+  SELECT year, quarter, SUM(totalSold) AS totalSales
+  FROM product_facts
+  GROUP BY year, quarter
+"
+
+total_sold_per_quarter <- dbGetQuery(mysql_conn, total_sold_per_quarter_query)
+print(total_sold_per_quarter)
+
+total_sold_per_quarter$YearQuarter <- paste(total_sold_per_quarter$year, "Q", total_sold_per_quarter$quarter, sep="")
+
+
+# Calculate max sales value
+max_sales <- max(total_sold_per_quarter$totalSales)
+
+# Create the plot
+ggplot(total_sold_per_quarter, aes(x = YearQuarter, y = totalSales)) +
+  geom_line(group = 1) +
+  geom_point() +
+  ggtitle("Total Sold Per Quarter") +
+  xlab("Year and Quarter") +
+  ylab("Total Sales (in 1000's)") +
+  scale_y_continuous(limits = c(0, max_sales * 1.5), labels = scales::comma_format(scale = 1e-3, suffix = "K")) +
+  scale_x_discrete(breaks = unique(total_sold_per_quarter$YearQuarter)) +
+  theme_minimal()
+
+```
+
+## Conclusion
+
+This report showcases the top performers in sales and the total quarterly sales for the year 2020. Managers and analysts can use this information to recognize top talent, identify successful strategies, and make data-driven decisions for future planning. 
+
+
+```{r}
+dbDisconnect(mysql_conn)
+
+```
+
