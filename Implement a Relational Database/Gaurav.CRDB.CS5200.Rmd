@@ -1,0 +1,148 @@
+---
+title: "Gaurav CS5200 Summer 2023"
+output: html_notebook
+---
+
+
+```{r}
+library(RSQLite)
+
+dbfile = "gymnasticsDB.sqlite"
+
+con <- dbConnect(RSQLite::SQLite(), dbfile)
+
+```
+
+
+
+```{sql connection= con}
+DROP TABLE IF EXISTS Visit
+
+```
+
+
+```{sql connection= con}
+CREATE TABLE Visit (
+    vid INTEGER PRIMARY KEY,
+    numGuests INTEGER NOT NULL,
+    date DATE NOT NULL,
+    time TIME NOT NUll
+  )
+
+```
+
+```{sql connection= con}
+DROP TABLE IF EXISTS Guest
+
+```
+
+```{sql connection= con}
+CREATE TABLE Guest (
+    gid TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    creditcard INTEGER NOT NULL,
+    expirationdate DATE NOT NULL,
+    CCV INTEGER NOT NULL
+  )
+
+```
+
+```{sql connection= con}
+DROP TABLE IF EXISTS GuestVisit
+
+```
+
+
+```{sql connection=con}
+CREATE TABLE GuestVisit (
+    vid INTEGER,
+    gid TEXT,
+    PRIMARY KEY (vid, gid),
+    FOREIGN KEY (vid) REFERENCES Visit (vid),
+    FOREIGN KEY (gid) REFERENCES Guest (gid)
+  )
+
+```
+
+
+```{sql connection= con}
+ INSERT INTO Visit (vid, numGuests, date, time)
+  VALUES 
+    (1, 2, '2023-07-01', '12:00:00'),
+    (2, 4, '2023-07-02', '15:00:00'),
+    (3, 1, '2023-07-03', '18:00:00')
+
+```
+
+
+```{sql connection= con}
+INSERT INTO Guest (gid, name, creditcard, expirationdate, CCV)
+  VALUES 
+    ('G001', 'John Doe', 1234567812345678, '2025-12-01', 123),
+    ('G002', 'Jane Smith', 2345678923456789, '2024-11-01', 456),
+    ('G003', 'Alice Johnson', 3456789034567890, '2025-10-01', 789)
+
+```
+
+
+```{sql connection= con}
+INSERT INTO GuestVisit (vid, gid)
+  VALUES 
+    (1, 'G001'),
+    (1, 'G002'),
+    (2, 'G002'),
+    (3, 'G003')
+
+```
+
+```{sql connection=con}
+PRAGMA foreign_keys = ON
+```
+
+
+```{r}
+result <- dbGetQuery(con, "PRAGMA table_info(Visit)")
+print(result)
+```
+
+
+```{r}
+result <- dbGetQuery(con, "PRAGMA table_info(Guest)")
+print(result)
+```
+
+
+
+```{r}
+result <- dbGetQuery(con, "PRAGMA table_info(GuestVisit)")
+print(result)
+```
+
+
+
+```{r}
+result <- dbGetQuery(con, "SELECT * FROM Visit")
+print(result)
+```
+
+
+```{r}
+result <- dbGetQuery(con, "SELECT * FROM Guest")
+print(result)
+```
+
+
+```{r}
+result <- dbGetQuery(con, "SELECT * FROM GuestVisit")
+print(result)
+```
+
+
+
+
+```{r}
+dbDisconnect(con)
+```
+
+
+
