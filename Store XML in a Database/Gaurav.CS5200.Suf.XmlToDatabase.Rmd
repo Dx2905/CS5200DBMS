@@ -1,0 +1,278 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+
+## Make Connection
+```{r}
+# Load the DBI and RSQLite packages
+install.packages("XML")
+library(DBI)
+library(RSQLite)
+library(XML)
+
+# Establish a connection to an SQLite database (it will be created if it doesn't exist)
+con <- dbConnect(RSQLite::SQLite(), dbname="mydatabase.sqlite")
+```
+
+## Q1
+
+```{r}
+# Install the 'jpeg' package from CRAN
+install.packages("jpeg")
+
+# Load the 'jpeg' library
+library(jpeg)
+
+# Download the image from the URL
+download.file("https://imgur.com/6ujdflA.jpg", destfile = "XMLBCNF.jpg", mode = "wb")
+
+# Read the image from the local file
+ball <- readJPEG("XMLBCNF.jpg")
+
+# Plot the image
+plot(0:1, 0:1, type = "n", ann = FALSE, axes = FALSE)
+rasterImage(ball, 0, 0, 1, 1)
+```
+
+
+## Q2
+
+### Drop table Author
+```{sql connection=con}
+DROP TABLE IF EXISTS Author;
+```
+
+### Drop table Book
+```{sql connection=con}
+DROP TABLE IF EXISTS Book;
+```
+
+### Drop table Book_Author
+```{sql connection=con}
+DROP TABLE IF EXISTS Book_Author;
+```
+
+### Create table Author
+```{sql connection=con}
+ CREATE TABLE Author (
+    Author_ID INTEGER PRIMARY KEY,
+    Name TEXT NOT NULL
+  );
+```
+
+
+### Create table Book
+```{sql connection=con}
+CREATE TABLE Book (
+    Book_ID TEXT PRIMARY KEY,
+    Title TEXT NOT NULL,
+    Genre TEXT NOT NULL,
+    Price REAL NOT NULL,
+    Publish_Date DATE NOT NULL,
+    Description TEXT,
+    Edition INTEGER
+  );
+  
+```
+
+
+
+### Create table Book_Author
+```{sql connection=con}
+CREATE TABLE Book_Author (
+    Book_ID TEXT,
+    Author_ID INTEGER,
+    PRIMARY KEY (Book_ID, Author_ID),
+    FOREIGN KEY (Book_ID) REFERENCES Book (Book_ID),
+    FOREIGN KEY (Author_ID) REFERENCES Author (Author_ID)
+  );
+
+```
+
+
+
+
+## Q3
+
+
+```{r}
+# Load required library
+
+# Parse the XML file
+xml_data <- xmlTreeParse("Books-v4.xml", useInternalNodes = TRUE)
+
+# Get the root node
+root_node <- xmlRoot(xml_data)
+
+
+# Extract authors
+author_nodes <- xpathApply(root_node, "//author")
+author_list <- unique(unlist(sapply(author_nodes, xmlValue)))
+authors_df <- data.frame(Author_ID = seq_along(author_list), Name = author_list, stringsAsFactors = FALSE)
+
+# Extract books
+book_nodes <- xpathApply(root_node, "//book")
+books_list <- lapply(book_nodes, function(book) {
+  book_df <- xmlAttrs(book)
+  book_df["Book_ID"] <- book_df["id"]  # map 'id' to 'Book_ID'
+  book_df$id <- NULL 
+
+  
+  book_df[c("Title", "Genre", "Price", "Publish_Date", "Description", "Edition")] <- 
+    sapply(c("title", "genre", "price", "publish_date", "description", "edition"), function(x) {
+      val <- getNodeSet(book, x)
+      if (length(val) > 0) return(xmlValue(val[[1]]))
+      else return(NA)
+    })
+  
+  return(as.data.frame(t(book_df), stringsAsFactors = FALSE))
+})
+
+books_df <- do.call(rbind, books_list)
+
+# Convert types as necessary
+books_df$Price <- as.numeric(books_df$Price)
+
+books_df$Publish_Date <- as.character(books_df$Publish_Date)
+books_df$Publish_Date <- as.Date(books_df$Publish_Date, format = "%Y-%m-%d")
+
+books_df$Edition <- as.integer(books_df$Edition)
+
+# Extract book-author relationships
+book_author_list <- mapply(function(book, id) {
+  author_nodes <- getNodeSet(book, "author")
+  authors <- sapply(author_nodes, xmlValue)
+  author_ids <- match(authors, authors_df$Name)
+  return(data.frame(Book_ID = id, Author_ID = author_ids, stringsAsFactors = FALSE))
+}, book_nodes, books_df$Book_ID, SIMPLIFY = FALSE)
+
+book_author_df <- do.call(rbind, book_author_list)
+
+
+head(authors_df)
+head(books_df)
+head(book_author_df)
+
+```
+
+
+## Q4
+
+```{r}
+dbExecute(con, "DELETE FROM Author")
+dbExecute(con, "DELETE FROM Book")
+dbExecute(con, "DELETE FROM Book_Author")
+
+
+books_df_unlisted <- as.data.frame(lapply(books_df, unlist))
+books_df_unlisted$Publish_Date <- as.Date(books_df_unlisted$Publish_Date)
+
+
+print(books_df_unlisted)
+
+existing_books <- dbGetQuery(con, "SELECT * FROM Book")
+
+# Step 2: Verify if books_df_unlisted is not empty
+if (nrow(books_df_unlisted) == 0) {
+  stop("books_df_unlisted is empty. Please verify the data.")
+}
+
+# Step 3: Try writing data frames to the database tables
+tryCatch({
+  dbWriteTable(con, "Author", authors_df, row.names = FALSE, append = TRUE)
+ 
+# Convert the Publish_Date column to character format with the "YYYY-MM-DD" format
+books_df_unlisted$Publish_Date <- as.character(books_df_unlisted$Publish_Date)
+
+# Insert the data into the temporary table
+dbWriteTable(con, "Book", books_df_unlisted, row.names = FALSE, append = TRUE)
+
+books_df_check <- dbReadTable(con, "Book")
+print(books_df_check)
+
+
+  dbWriteTable(con, "Book_Author", book_author_df, row.names = FALSE, append = TRUE)
+}, error = function(e) {
+  print(paste("Error:", e$message))
+})
+
+```
+
+
+### Reading Created Tables
+```{r}
+# Fetch and print the Author table
+authors_df_check <- dbReadTable(con, "Author")
+print(authors_df_check)
+
+# Fetch and print the Book table
+books_df_check <- dbReadTable(con, "Book")
+print(books_df_check)
+
+# Fetch and print the Book_Author table
+book_author_df_check <- dbReadTable(con, "Book_Author")
+print(book_author_df_check)
+
+```
+
+
+## Q5(A)
+
+```{sql connection=con}
+SELECT Genre, COUNT(*) AS NumBooks
+FROM Book
+GROUP BY Genre
+HAVING COUNT(*) >= 3;
+
+```
+
+
+## Q5(B)
+```{sql connection=con}
+SELECT MIN(Publish_Date) AS OldestPublicationYear
+FROM Book;
+
+```
+
+## Q5(C)
+```{sql connection=con}
+SELECT Genre, COUNT(*) AS Number_of_Books, AVG(Price) AS Average_Price
+FROM Book
+GROUP BY Genre;
+
+```
+
+
+## Q5(D)
+```{sql connection=con}
+SELECT Title, COUNT(DISTINCT Author_ID) AS Number_of_Authors
+FROM Book
+JOIN Book_Author ON Book.Book_ID = Book_Author.Book_ID
+GROUP BY Title
+HAVING COUNT(DISTINCT Author_ID) > 1;
+
+```
+
+
+## Q5(E)
+```{sql connection=con}
+SELECT Title, Name AS Author
+FROM Book
+JOIN Book_Author ON Book.Book_ID = Book_Author.Book_ID
+JOIN Author ON Book_Author.Author_ID = Author.Author_ID
+WHERE Price < (SELECT 0.8 * AVG(Price) FROM Book)
+   OR Price > (SELECT 1.2 * AVG(Price) FROM Book);
+
+```
+
+
+```{r}
+dbDisconnect(con)
+
+```
+
