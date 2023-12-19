@@ -1,0 +1,243 @@
+---
+title: "Gaurav CS5200 Summer2023 Build Triggers"
+output: html_notebook
+---
+
+
+
+```{r}
+library(RSQLite)
+
+dbfile = "mediaDB.db"
+
+con <- dbConnect(RSQLite::SQLite(), dbfile)
+```
+
+
+
+#Q1 Adding Column
+```{sql connection=con}
+
+-- Add the new column. It will initially contain NULLs.
+ALTER TABLE invoices ADD COLUMN Calculatedtotal NUMERIC(10,2);
+
+```
+
+
+```{sql connection=con}
+
+-- Copy values from 'Total' to 'Calculatedtotal'.
+UPDATE invoices SET Calculatedtotal = Total;
+
+```
+
+#Q2 Check Positive Trigger
+
+```{r}
+# Drop the trigger if it exists 
+query <- "
+DROP TRIGGER IF EXISTS check_positive_calculatedtotal_insert;
+"
+dbExecute(con, query)
+
+# Trigger for INSERT operation
+query <- "
+CREATE TRIGGER check_positive_calculatedtotal_insert
+BEFORE INSERT ON invoices
+FOR EACH ROW
+WHEN NEW.Calculatedtotal < 0
+BEGIN
+    SELECT RAISE(FAIL, 'Calculatedtotal must be positive.');
+END;
+"
+dbExecute(con, query)
+
+
+# Drop the trigger if it exists
+query <- "
+DROP TRIGGER IF EXISTS check_positive_calculatedtotal_update;
+"
+dbExecute(con, query)
+
+# Trigger for UPDATE operation
+query <- "
+CREATE TRIGGER check_positive_calculatedtotal_update
+BEFORE UPDATE ON invoices
+FOR EACH ROW
+WHEN NEW.Calculatedtotal < 0
+BEGIN
+    SELECT RAISE(FAIL, 'Calculatedtotal must be positive.');
+END;
+"
+dbExecute(con, query)
+
+
+```
+
+
+
+
+#Q3 TriggerOnInsert
+
+
+
+```{r}
+# Create the after insert trigger
+query <- "
+DROP TRIGGER IF EXISTS update_invoice_total_after_insert;
+"
+dbExecute(con, query)
+
+
+query <- "
+CREATE TRIGGER update_invoice_total_after_insert
+AFTER INSERT ON invoice_items
+BEGIN
+  UPDATE invoices
+  SET Total = (
+    SELECT SUM(UnitPrice * Quantity)
+    FROM invoice_items
+    WHERE InvoiceId = NEW.InvoiceId
+  )
+  WHERE InvoiceId = NEW.InvoiceId;
+END;
+"
+dbExecute(con, query)
+```
+
+
+
+
+
+#Q4 TriggerOnUpdate
+
+```{r}
+# Create the after update trigger
+
+query <- "
+DROP TRIGGER IF EXISTS update_invoice_total_after_update;
+"
+dbExecute(con, query)
+
+query <- "
+CREATE TRIGGER update_invoice_total_after_update
+AFTER UPDATE ON invoice_items
+BEGIN
+  UPDATE invoices
+  SET Total = (
+    SELECT SUM(UnitPrice * Quantity)
+    FROM invoice_items
+    WHERE InvoiceId = NEW.InvoiceId
+  )
+  WHERE InvoiceId = NEW.InvoiceId;
+END;
+"
+dbExecute(con, query)
+```
+
+
+
+
+#Q4 TriggerOnDelete
+
+```{r}
+# Create the after delete trigger
+
+query <- "
+DROP TRIGGER IF EXISTS update_invoice_total_after_delete;
+"
+dbExecute(con, query)
+
+query <- "
+CREATE TRIGGER update_invoice_total_after_delete
+AFTER DELETE ON invoice_items
+BEGIN
+  UPDATE invoices
+  SET Total = (
+    SELECT SUM(UnitPrice * Quantity)
+    FROM invoice_items
+    WHERE InvoiceId = OLD.InvoiceId
+  )
+  WHERE InvoiceId = OLD.InvoiceId;
+END;
+"
+dbExecute(con, query)
+
+```
+
+
+
+
+#Q5 Testing Triggers
+
+
+#Inserting new invoice items and checking the Total
+```{r}
+# Check the total of a certain invoice before any operations
+invoice_id <- 1  # Replace with a valid invoice ID in your database
+query <- sprintf("SELECT Total FROM invoices WHERE InvoiceId = %d;", invoice_id)
+print(dbGetQuery(con, query))
+# 
+# # Insert a new invoice item and check the total again
+
+query <- sprintf("INSERT INTO invoice_items (InvoiceId, TrackId, UnitPrice, Quantity) VALUES (%d, 1, 1.99, 2);", invoice_id)
+dbExecute(con, query)
+query <- sprintf("SELECT Total FROM invoices WHERE InvoiceId = %d;", invoice_id)
+print(dbGetQuery(con, query))
+```
+
+
+
+
+#Updating the invoice_items and checking total
+
+```{r}
+# Update the invoice item and check the total again
+
+query <- "UPDATE invoice_items SET Quantity = 3 WHERE InvoiceId = 1 AND TrackId = 1;"
+dbExecute(con, query)
+query <- sprintf("SELECT Total FROM invoices WHERE InvoiceId = %d;", invoice_id)
+print(dbGetQuery(con, query))
+```
+
+
+
+#Deleting the Invoice item and cheking the total
+
+```{r}
+# Delete the invoice item and check the total again
+
+query <- "DELETE FROM invoice_items WHERE InvoiceId = 1 AND TrackId = 1;"
+dbExecute(con, query)
+query <- sprintf("SELECT Total FROM invoices WHERE InvoiceId = %d;", invoice_id)
+print(dbGetQuery(con, query))
+```
+
+
+
+#Inserting the negative Total value and checking the Trigger
+```{r}
+query <- "
+INSERT INTO invoices (InvoiceId, CustomerId, InvoiceDate, Calculatedtotal) 
+VALUES (413, 44, '2023-06-14', -10);
+"
+dbExecute(con, query)
+```
+
+
+#Updating the invoice with negative Total and checking Trigger
+
+```{r}
+# Update the invoice Total and check the Trigger
+
+query <- "UPDATE invoices SET Calculatedtotal = -10 WHERE InvoiceId = 1;"
+dbExecute(con, query)
+```
+
+
+
+```{r}
+dbDisconnect(con)
+```
+
+
